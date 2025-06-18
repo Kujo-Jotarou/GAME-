@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポケットガジェッター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #0c0a1a;
+            color: #e0e0e0;
+            overflow: hidden; /* Prevent body scroll */
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .game-container {
+            width: 100%;
+            height: 100vh;
+            max-width: 800px;
+            max-height: 600px;
+            border: 2px solid #38bdf8;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+            background: #0c0a1a;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #display-area {
+            flex-grow: 1;
+            perspective: 1200px; /* 奥行きを出すための視点 */
+        }
+        
+        /* Opening Screen */
+        #opening-screen {
+            background-image: radial-gradient(white 0.5px, transparent 0);
+            background-size: 20px 20px;
+            animation: space-scroll 60s linear infinite;
+        }
+        #opening-ship {
+            width: 150px; height: 80px; background-color: #5a627a; border-radius: 50% / 100%;
+            border-top-left-radius: 0; border-top-right-radius: 0;
+            border: 3px solid #9fadca; position: relative; box-shadow: 0 10px 30px black;
+            animation: drift 15s ease-in-out infinite;
+        }
+        #opening-ship::before { content: ''; position: absolute; top: -10px; left: 35px; width: 80px; height: 30px; border-radius: 10px; background: #3e5e8e; }
+        #opening-ship::after { content: ''; position: absolute; top: 15px; left: 65px; width: 20px; height: 10px; border-radius: 5px; background: #ff4d4d; box-shadow: 0 0 10px #ff4d4d; animation: blink-red 2s infinite ease-in-out; }
+        @keyframes drift { 0% { transform: translate(-200px, 50px) rotate(-10deg); } 50% { transform: translate(200px, -50px) rotate(5deg); } 100% { transform: translate(-200px, 50px) rotate(-10deg); } }
+        .fade-in-text { opacity: 0; animation: fadeIn 3s 1s forwards; }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        /* Battle Scene Styles */
+        #battle-display {
+            perspective: 1000px;
+            background-image: 
+                radial-gradient(circle at 1px 1px, rgba(255,255,255,0.2) 1px, transparent 0),
+                radial-gradient(circle at 10px 10px, rgba(255,255,255,0.1) 1px, transparent 0);
+            background-size: 20px 20px;
+            animation: space-scroll 30s linear infinite;
+        }
+        @keyframes space-scroll { from { background-position: 0 0; } to { background-position: -400px 400px; } }
+        .battle-position { position: absolute; width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; }
+        .player-position { bottom: -20px; left: 0; }
+        .enemy-position { top: 20px; left: 0; transform: translateZ(-250px) scale(0.8); }
+        .robot-platform { width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0) 60%); border: 2px solid rgba(56, 189, 248, 0.5); transform: rotateX(75deg); position: absolute; bottom: -50px; }
+        
+        /* Field View NEW Styles */
+        #field-display { 
+            background-color: #0d1a2b;
+            transform-style: preserve-3d;
+            transform: rotateX(30deg) scale(0.9);
+            top: 20px;
+        }
+        #field-map { width: 100%; height: 100%; display: grid; }
+        .map-tile { background-color: transparent; position: relative; overflow: hidden; }
+        .floor-panel { background-color: #1b2838; background-image: linear-gradient(45deg, #27384d 25%, transparent 25%), linear-gradient(-45deg, #27384d 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #27384d 75%), linear-gradient(-45deg, transparent 75%, #27384d 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
+        .wall { background: linear-gradient(135deg, #3e5e8e, #1b2838); box-shadow: inset 0 0 15px #111; border: 1px solid #4a6a9a; }
+        .console::after { content: ''; position: absolute; top: 20%; left: 20%; width: 20%; height: 20%; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px #ff4d4d; animation: blink-red 2s infinite ease-in-out; }
+        .teleporter::after { content: ''; position: absolute; inset: 15%; background-color: #38bdf8; border-radius: 50%; box-shadow: 0 0 20px #38bdf8, inset 0 0 10px white; animation: pulse-blue 1.5s infinite; }
+        .cockpit-window { background: black; }
+        .cockpit-window::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(white 1px, transparent 0); background-size: 40px 40px; animation: space-scroll-fast 10s linear infinite; }
+        .cockpit-seat { background-color: #4a526a; border: 2px solid #67728a; border-radius: 30% 30% 0 0; }
+        @keyframes blink-red { 0%, 100% { opacity: 1; transform: scale(1.1); } 50% { opacity: 0.3; transform: scale(1); } }
+        @keyframes pulse-blue { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(0.9); opacity: 1; } }
+        @keyframes space-scroll-fast { from { background-position: 0 0; } to { background-position: -400px 200px; } }
+        #player-avatar { width: 30px; height: 30px; background-color: #38bdf8; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 15px #38bdf8; position: absolute; transition: all 0.1s linear; z-index: 10; }
+
+        /* Common UI Styles & Animations */
+        .hud-element { border: 1px solid #0f3460; background-color: rgba(12, 12, 30, 0.7); backdrop-filter: blur(5px); box-shadow: 0 0 10px rgba(27, 94, 155, 0.5); clip-path: polygon(0 10px, 10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px)); }
+        .btn-command { background: linear-gradient(45deg, #e94560, #ff6b81); color: #ffffff; font-family: 'Orbitron', sans-serif; font-weight: 700; transition: all 0.2s ease; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); border: 1px solid #ff6b81; }
+        .btn-command:not(.disabled):hover { transform: scale(1.05); box-shadow: 0 0 15px #e94560; }
+        .btn-command.disabled { background: #555; border-color: #777; cursor: not-allowed; box-shadow: none; transform: none; }
+        .btn-overdrive { background: linear-gradient(45deg, #fde047, #f97316); color: #1a1a2e; animation: pulse-yellow 1.5s infinite; }
+        @keyframes pulse-yellow { 0% { box-shadow: 0 0 5px #fde047; } 50% { box-shadow: 0 0 20px #f97316; } 100% { box-shadow: 0 0 5px #fde047; } }
+        
+        /* ★ Robot Sprite Styles ★ */
+        .robot-container { position: relative; width: 120px; height: 140px; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
+        .robot-sprite > div { position: absolute; }
+        .unit0-sprite .head { width: 50px; height: 50px; background: #c0c0c0; border: 2px solid #555; border-radius: 50% 50% 40% 40%; left: 35px; top: 0; }
+        .unit0-sprite .eye { width: 30px; height: 10px; background: #38bdf8; border-radius: 5px; box-shadow: 0 0 10px #38bdf8; top: 20px; left: 10px; }
+        .unit0-sprite .body { width: 80px; height: 70px; background: #a9a9a9; border: 2px solid #555; border-radius: 10px; left: 20px; top: 45px; }
+        .unit0-sprite .core { width: 20px; height: 20px; background: #e94560; border-radius: 50%; box-shadow: 0 0 10px #e94560; top: 25px; left: 30px; animation: pulse-red 2s infinite; }
+        
+        .acolyte-sprite .head { width: 60px; height: 40px; background: #4a526a; border-radius: 10px 10px 50% 50%; left: 30px; top: 5px; border: 2px solid #333; }
+        .acolyte-sprite .eye { width: 40px; height: 5px; background: #ff4d4d; box-shadow: 0 0 10px #ff4d4d; top: 15px; left: 10px; }
+        .acolyte-sprite .body { width: 60px; height: 80px; background: #5a627a; border-radius: 5px; left: 30px; top: 40px; border: 2px solid #333; }
+        .acolyte-sprite .shoulder { width: 30px; height: 40px; background: #4a526a; border-radius: 5px 10px 5px 5px; top: 40px; border: 2px solid #333; }
+        .acolyte-sprite .left { left: 5px; } .acolyte-sprite .right { right: 5px; }
+
+        .taking-damage { animation: shake 0.5s; }
+        @keyframes shake { 0%, 100% { transform: translate(0, 0); } 10%, 30%, 50%, 70%, 90% { transform: translate(-10px, -10px); } 20%, 40%, 60%, 80% { transform: translate(10px, 0px); } }
+        .battle-status { position: absolute; width: 200px; padding: 8px; font-family: 'Orbitron', sans-serif; background-color: rgba(12, 12, 30, 0.8); border: 1px solid #0f3460; border-radius: 8px; box-shadow: 0 0 10px rgba(27, 94, 155, 0.5); }
+        .player-status { bottom: -20px; } .enemy-status { top: -20px; }
+        .status-bar { background-color: #333; border-radius: 5px; overflow: hidden; padding: 1px; border: 1px solid #444;}
+        .status-bar-inner { height: 8px; transition: width 0.5s ease; border-radius: 3px; }
+        .hp-bar { background: linear-gradient(90deg, #4ade80, #16a34a); } .ep-bar { background: linear-gradient(90deg, #60a5fa, #2563eb); } .od-bar { background: linear-gradient(90deg, #fde047, #f97316); }
+        
+        /* ★ VFX & Animations ★ */
+        .vfx { position: absolute; pointer-events: none; }
+        .damage-popup { color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 0 0 5px red; animation: move-up-fade 1s forwards; }
+        @keyframes move-up-fade { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-50px); opacity: 0; } }
+        .power-aura { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 235, 59, 0.5) 0%, rgba(255, 235, 59, 0) 70%); animation: pulse-aura 1s forwards; }
+        @keyframes pulse-aura { from { transform: scale(0.5); opacity: 0; } 50% { opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+        .laser-beam { height: 4px; background: linear-gradient(90deg, transparent, #ff4d4d, white, #ff4d4d, transparent); border-radius: 2px; box-shadow: 0 0 10px #ff4d4d; animation: shoot-beam 0.4s forwards; }
+        @keyframes shoot-beam { from { width: 0; } to { width: 300px; } }
+        .slash-effect { width: 100px; height: 100px; border: 4px solid white; border-color: transparent transparent white transparent; border-radius: 50%; animation: slash-anim 0.3s forwards; }
+        @keyframes slash-anim { from { transform: rotate(45deg) scale(0); opacity: 1; } to { transform: rotate(45deg) scale(1.5); opacity: 0; } }
+        .overdrive-charge { width: 20px; height: 20px; background: #fde047; border-radius: 50%; box-shadow: 0 0 20px #f97316; animation: spin-and-grow 1s forwards; }
+        @keyframes spin-and-grow { from { transform: rotate(0) scale(1); } to { transform: rotate(360deg) scale(10); opacity: 0; } }
+        .screen-flash { position: absolute; inset: 0; background: white; opacity: 0; animation: flash-anim 0.5s; z-index: 1000; }
+        @keyframes flash-anim { 0% { opacity: 0; } 50% { opacity: 0.7; } 100% { opacity: 0; } }
+        
+        #transition-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; opacity: 0; background-color: #0c0a1a; }
+        #transition-overlay.active { opacity: 1; animation: glitch 1.2s forwards; }
+        @keyframes glitch { 0% { clip-path: inset(0 0 0 0); } 5% { clip-path: inset(10% 0 85% 0); transform: translateX(-10px); } 10% { clip-path: inset(80% 0 5% 0); transform: translateX(10px); } 15% { clip-path: inset(40% 0 42% 0); transform: translateX(5px); } 20% { clip-path: inset(90% 0 2% 0); transform: translateX(-7px); } 25% { clip-path: inset(25% 0 70% 0); transform: translateX(12px); } 30% { clip-path: inset(60% 0 30% 0); transform: translateX(-15px); } 35% { clip-path: inset(0 0 0 0); transform: translateX(0); } 45% { clip-path: inset(0 0 0 0); transform: translateX(0); background: white; } 55% { background: transparent; } 90% { clip-path: inset(0 0 100% 0); } 100% { clip-path: inset(0 0 100% 0); opacity: 0;} }
+        .shatter { position: absolute; background: #0c0a1a; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div id="game-container" class="game-container">
+        
+        <div id="opening-screen" class="w-full h-full flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <div id="opening-ship"></div>
+            <p class="fade-in-text font-orbitron text-lg absolute bottom-10">A lone ship drifts through the void...</p>
+        </div>
+
+        <div id="title-screen" class="w-full h-full hidden flex-col items-center justify-center text-center">
+            <h1 class="text-6xl font-orbitron text-cyan-300" style="text-shadow: 0 0 15px #67e8f9;">ポケットガジェッター</h1>
+            <button id="start-game-btn" class="btn-command font-bold py-3 px-8 mt-12 text-2xl">GAME START</button>
+        </div>
+
+        <div id="game-screen" class="w-full h-full hidden flex-col">
+            <div id="display-area" class="w-full relative overflow-hidden">
+                <div id="battle-display" class="w-full h-full hidden">
+                     <div id="player-position" class="battle-position player-position"></div>
+                     <div id="enemy-position" class="battle-position enemy-position"></div>
+                </div>
+                <div id="field-display" class="w-full h-full relative">
+                     <div id="field-map"></div>
+                     <div id="player-avatar"></div>
+                </div>
+                 <div id="vfx-layer" class="absolute inset-0 pointer-events-none z-10"></div>
+                 <div id="transition-overlay"></div>
+            </div>
+
+            <div class="h-48 flex-shrink-0 flex flex-col p-2">
+                <div id="dialogue-window" class="hud-element flex-grow w-full p-4 text-lg leading-relaxed mb-2">
+                    <p id="dialogue-text"></p>
+                </div>
+                <div class="h-16 flex-shrink-0 flex">
+                    <div id="command-window" class="w-full p-1 flex items-center justify-center"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+//============== Global variables and initialization ==============//
+const D = { 
+    openingScreen: document.getElementById('opening-screen'), titleScreen: document.getElementById('title-screen'),
+    gameScreen: document.getElementById('game-screen'), startGameBtn: document.getElementById('start-game-btn'),
+    displayArea: document.getElementById('display-area'), battleDisplay: document.getElementById('battle-display'),
+    fieldDisplay: document.getElementById('field-display'), playerPosition: document.getElementById('player-position'),
+    enemyPosition: document.getElementById('enemy-position'), dialogueWindow: document.getElementById('dialogue-window'),
+    dialogueText: document.getElementById('dialogue-text'), commandWindow: document.getElementById('command-window'),
+    vfxLayer: document.getElementById('vfx-layer'), transitionOverlay: document.getElementById('transition-overlay'),
+    fieldMap: document.getElementById('field-map'), playerAvatar: document.getElementById('player-avatar'),
+};
+D.startGameBtn.addEventListener('click', () => Game.startGame());
+
+//==================================================//
+//                 CONFIG (Setting Data)            //
+//==================================================//
+const Config = {
+    characters: { 'unit0': { name: 'ユニット0', hp: 100, maxHp: 100, ep: 50, maxEp: 50, atk: 15, def: 10, od: 0, maxOd: 100, skills: ['shoot', 'power_charge'], type: 'player' } },
+    enemies: { 'acolyte': { name: 'ジェネシス・アコライト', hp: 70, maxHp: 70, ep: 20, maxEp: 20, atk: 12, def: 8, skills: ['beam_rifle'], type: 'enemy', drop: { xp: 10, items: ['リペアキットS'] } } },
+    skills: { 'attack': { name: 'こうげき', cost: 0, power: 1.0, type: 'physical' }, 'shoot': { name: 'シュート', cost: 5, power: 1.5, type: 'laser' }, 'power_charge': { name: 'パワーチャージ', cost: 10, type: 'buff', effect: (user) => { user.atk *= 1.5; Game.battle.log(`${user.name} の こうげきりょくが あがった！`); } }, 'beam_rifle': { name: 'ビームライフル', cost: 5, power: 1.2, type: 'laser' }, 'overdrive_attack': { name: 'オーバードライブ', cost: 0, power: 3.0, type: 'special' } },
+    story: { 'prologue': [{ speaker: 'システム', text: 'コールドスリープから目覚めます...' }, { speaker: '主人公', text: '...ここは？ ...私は誰だ？' }, { speaker: 'ユニット0', text: '<<マスター、おはようございます。私の名前はユニット0。あなたの相棒です>>' }, { speaker: 'ユニット0', text: '<<船のシステムによれば、南の転送ゲートから惑星へ移動できます>>' }] },
+    locations: {
+        'ship': { 
+            id: 'ship', name: '漂流宇宙船', encounterChance: 0,
+            map: [ // 0: floor, 1: wall, 2: console, 3: teleporter, 4: seat, 5: window
+                [1,1,1,1,5,5,5,5,1,1,1,1], [1,1,1,4,0,0,0,0,4,1,1,1], [1,2,0,0,0,0,0,0,0,0,2,1],
+                [1,0,0,0,0,0,0,0,0,0,0,1], [1,0,0,0,1,1,1,1,0,0,0,1], [1,1,1,0,1,1,1,1,0,1,1,1],
+                [1,1,1,0,0,0,0,0,0,1,1,1], [1,1,1,1,1,3,3,1,1,1,1,1], [1,1,1,1,1,1,1,1,1,1,1,1],
+            ], startPos: { x: 6, y: 3 }
+        },
+        'terra_nova': { 
+            id: 'terra_nova', name: 'テラ・ノヴァ', encounterChance: 0.15,
+             map: [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
+                [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,1],[1,1,0,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
+                [1,0,1,1,1,1,1,0,1,0,1,1,1,0,1,1,1,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+             ], startPos: { x: 10, y: 7 }
+        }
+    }
+};
+
+//==================================================//
+//              GAME (Overall Game Management)      //
+//==================================================//
+const Game = {
+    state: 'opening', player: {}, currentLocation: null, dialogueQueue: [], isTransitioning: false,
+    keysPressed: {}, lastMoveTime: 0, MOVE_COOLDOWN: 100,
+
+    init() {
+        D.openingScreen.classList.remove('hidden'); D.titleScreen.classList.add('hidden'); D.gameScreen.classList.add('hidden');
+        setTimeout(() => { D.openingScreen.classList.add('hidden'); D.titleScreen.classList.remove('hidden'); }, 5000);
+        requestAnimationFrame(this.gameLoop.bind(this));
+    },
+    startGame() {
+        this.state = 'dialogue';
+        this.player = { party: [JSON.parse(JSON.stringify(Config.characters.unit0))], inventory: [], x: 1, y: 1, };
+        D.titleScreen.classList.add('hidden'); D.gameScreen.classList.remove('hidden');
+        window.addEventListener('keydown', (e) => this.handleKeyDown(e)); window.addEventListener('keyup', (e) => this.handleKeyUp(e));
+        this.startDialogue(Config.story.prologue);
+    },
+    gameLoop(timestamp) {
+        requestAnimationFrame(this.gameLoop.bind(this));
+        if (this.state !== 'field' || this.isTransitioning) return;
+        if (timestamp - this.lastMoveTime < this.MOVE_COOLDOWN) return;
+        let dx = 0, dy = 0;
+        if (this.keysPressed['ArrowUp']) dy--; if (this.keysPressed['ArrowDown']) dy++;
+        if (this.keysPressed['ArrowLeft']) dx--; if (this.keysPressed['ArrowRight']) dx++;
+        if (dx !== 0 || dy !== 0) { this.lastMoveTime = timestamp; this.field.movePlayer(this.player.x + dx, this.player.y + dy); }
+    },
+    handleKeyDown(e) { if (e.key.startsWith('Arrow')) e.preventDefault(); this.keysPressed[e.key] = true; },
+    handleKeyUp(e) { this.keysPressed[e.key] = false; },
+    changeState(newState) {
+        this.state = newState;
+        D.battleDisplay.classList.toggle('hidden', this.state !== 'battle'); D.fieldDisplay.classList.toggle('hidden', this.state === 'battle');
+        if (this.state === 'field' && !this.field.hasRenderedFirstMap) { this.field.renderMap(); this.field.hasRenderedFirstMap = true; }
+        this.updateUI();
+    },
+    startEncounterTransition(callback) {
+        this.isTransitioning = true; D.transitionOverlay.innerHTML = '';
+        for(let i=0; i<30; i++) {
+            const shatter = document.createElement('div'); shatter.className = 'shatter';
+            shatter.style.left = `${Math.random()*100}%`; shatter.style.top = `${Math.random()*100}%`;
+            shatter.style.width = `${Math.random()*150}px`; shatter.style.height = `${Math.random()*150}px`;
+            shatter.style.transform = `rotate(${Math.random()*360}deg)`; D.transitionOverlay.appendChild(shatter);
+        }
+        D.transitionOverlay.classList.add('active');
+        setTimeout(() => { if(callback) callback(); }, 500);
+        setTimeout(() => { D.transitionOverlay.classList.remove('active'); this.isTransitioning = false; }, 1200);
+    },
+    startDialogue(dialogueLines) {
+        this.changeState('dialogue'); this.dialogueQueue = [...dialogueLines];
+        this.nextDialogue(); D.dialogueWindow.onclick = () => this.nextDialogue();
+    },
+    nextDialogue() {
+        if (this.dialogueQueue.length > 0) {
+            D.dialogueText.textContent = `${this.dialogueQueue[0].speaker}: ${this.dialogueQueue.shift().text}`;
+        } else {
+            D.dialogueWindow.onclick = null;
+            if (!this.currentLocation) this.field.loadLocation('ship');
+            this.changeState('field');
+        }
+    },
+    updateUI() { if (this.state === 'field') this.field.updateFieldUI(); else if (this.state === 'battle') this.battle.updateBattleUI(); },
+};
+
+//==================================================//
+//               FIELD (Field Management)           //
+//==================================================//
+Game.field = {
+    tileSize: 0, hasRenderedFirstMap: false,
+    loadLocation(locationId) { Game.currentLocation = Config.locations[locationId]; Game.player.x = Game.currentLocation.startPos.x; Game.player.y = Game.currentLocation.startPos.y; this.renderMap(); },
+    renderMap() {
+        if(!Game.currentLocation) return;
+        const mapData = Game.currentLocation.map; const mapHeight = mapData.length; const mapWidth = mapData[0].length;
+        this.tileSize = D.fieldMap.clientWidth / mapWidth; D.fieldMap.style.height = `${this.tileSize * mapHeight}px`;
+        const playerSize = this.tileSize * 0.8; D.playerAvatar.style.width = `${playerSize}px`; D.playerAvatar.style.height = `${playerSize}px`;
+        D.fieldMap.style.gridTemplateColumns = `repeat(${mapWidth}, 1fr)`; D.fieldMap.style.gridTemplateRows = `repeat(${mapHeight}, 1fr)`; D.fieldMap.innerHTML = '';
+        mapData.forEach(row => {
+            row.forEach(tileType => {
+                const tile = document.createElement('div'); tile.className = 'map-tile';
+                switch(tileType) {
+                    case 0: tile.classList.add('floor-panel'); break; case 1: tile.classList.add('wall'); break;
+                    case 2: tile.classList.add('floor-panel', 'console'); break; case 3: tile.classList.add('floor-panel', 'teleporter'); break;
+                    case 4: tile.classList.add('floor-panel', 'cockpit-seat'); break; case 5: tile.classList.add('cockpit-window'); break;
+                }
+                D.fieldMap.appendChild(tile);
+            });
+        });
+        this.updatePlayerPosition();
+    },
+    movePlayer(newX, newY) {
+        const map = Game.currentLocation.map; const targetTile = map[newY]?.[newX];
+        if (targetTile === undefined || targetTile === 1 || targetTile === 4 || targetTile === 5) return;
+        Game.player.x = newX; Game.player.y = newY; this.updatePlayerPosition();
+        if (targetTile === 3) { Game.startEncounterTransition(() => { this.loadLocation('terra_nova'); Game.changeState('field'); });
+        } else if (Game.currentLocation.id !== 'ship' && Math.random() < Game.currentLocation.encounterChance) {
+             Game.startEncounterTransition(() => Game.battle.start([JSON.parse(JSON.stringify(Config.enemies.acolyte))]));
+        }
+    },
+    updatePlayerPosition() {
+        const playerSize = parseFloat(D.playerAvatar.style.width); const offset = (this.tileSize - playerSize) / 2;
+        D.playerAvatar.style.left = `${Game.player.x * this.tileSize + offset}px`; D.playerAvatar.style.top = `${Game.player.y * this.tileSize + offset}px`;
+    },
+    updateFieldUI() {
+        if (!Game.currentLocation) return;
+        D.dialogueText.textContent = `${Game.currentLocation.name} にいる。`; D.commandWindow.innerHTML = `<p class="text-cyan-300 font-orbitron text-lg">矢印キーで移動</p>`;
+    },
+};
+
+//==================================================//
+//               BATTLE (Battle Management)         //
+//==================================================//
+Game.battle = {
+    enemies: [], isPlayerTurn: true,
+    start(enemyGroup) { this.enemies = enemyGroup; Game.changeState('battle'); this.log(`！ ${this.enemies.map(e => e.name).join(', ')} があらわれた！`); this.isPlayerTurn = true; this.nextTurn(); },
+    nextTurn() { this.updateBattleUI(); if (this.checkEndCondition()) return; if (this.isPlayerTurn) this.showPlayerCommands(); else setTimeout(() => this.enemyTurn(), 1000); },
+    showPlayerCommands() {
+        const char = Game.player.party[0]; let commandHTML = '<div class="grid grid-cols-4 gap-2 w-full px-2">';
+        commandHTML += `<button class="btn-command font-bold p-2 text-sm" onclick="Game.battle.executeAction(0, 'attack')">こうげき</button>`;
+        char.skills.forEach(skillId => {
+            const skill = Config.skills[skillId]; const disabled = char.ep < skill.cost;
+            commandHTML += `<button class="btn-command font-bold p-2 text-sm ${disabled ? 'disabled' : ''}" ${disabled ? 'disabled' : ''} onclick="Game.battle.executeAction(0, '${skillId}')">${skill.name}</button>`;
+        });
+        if (char.od >= char.maxOd) commandHTML += `<button class="btn-command btn-overdrive font-bold p-2 text-sm col-span-1" onclick="Game.battle.executeAction(0, 'overdrive_attack')">オーバードライブ</button>`;
+        commandHTML += '</div>'; D.commandWindow.innerHTML = commandHTML;
+    },
+    executeAction(actorIndex, skillId) {
+        const isPlayer = this.isPlayerTurn;
+        const actor = isPlayer ? Game.player.party[actorIndex] : this.enemies[actorIndex];
+        const target = isPlayer ? this.enemies[0] : Game.player.party[0];
+        const skill = Config.skills[skillId];
+        if (actor.ep < skill.cost) { this.log('EPがたりない！'); return; }
+        actor.ep -= skill.cost; D.commandWindow.innerHTML = ''; this.log(`${actor.name} の ${skill.name}！`);
+
+        this.playVFX(actor, target, skill, () => {
+            if (skill.type === 'buff') { skill.effect(actor); }
+            else { const damage = Math.max(1, Math.floor(actor.atk * skill.power - target.def)); this.dealDamage(target, damage); this.addOd(actor, 15); }
+            if (skillId === 'overdrive_attack') actor.od = 0;
+            this.isPlayerTurn = !this.isPlayerTurn;
+            setTimeout(() => this.nextTurn(), 500);
+        });
+    },
+    enemyTurn() { const enemy = this.enemies[0]; const skillId = (enemy.hp < enemy.maxHp / 2 || enemy.ep < Config.skills.beam_rifle.cost) ? 'attack' : 'beam_rifle'; this.executeAction(0, skillId); },
+    dealDamage(target, damage) {
+        target.hp = Math.max(0, target.hp - damage); this.log(`${target.name} は ${damage} のダメージをうけた！`); this.addOd(target, 10);
+        const targetElement = document.getElementById(`${target.type}-${target.name.replace(/\s/g, '')}`);
+        if(targetElement) {
+            targetElement.classList.add('taking-damage'); setTimeout(() => targetElement.classList.remove('taking-damage'), 500);
+            const vfx = document.createElement('div'); vfx.className = 'vfx damage-popup'; vfx.textContent = damage;
+            targetElement.appendChild(vfx); setTimeout(() => vfx.remove(), 1000);
+        }
+        this.updateBattleUI();
+    },
+    addOd(character, amount) { character.od = Math.min(character.maxOd, character.od + amount); },
+    checkEndCondition() {
+        const playerAlive = Game.player.party.some(p => p.hp > 0); const enemiesAlive = this.enemies.some(e => e.hp > 0);
+        if (!playerAlive) { this.log('...全滅した...'); setTimeout(() => { alert("GAME OVER"); location.reload(); }, 2000); return true; }
+        if (!enemiesAlive) {
+            this.log('敵を倒した！'); const drop = this.enemies[0].drop; this.log(`${drop.xp}の経験値を獲得！`);
+            if(drop.items[0]) { Game.player.inventory.push(drop.items[0]); this.log(`${drop.items[0]}を手に入れた！`); }
+            setTimeout(() => this.endBattle(), 2000); return true;
+        }
+        return false;
+    },
+    endBattle() { Game.player.party.forEach(p => { p.hp = Math.min(p.maxHp, p.hp + 20); p.ep = Math.min(p.maxEp, p.ep + 10); }); Game.changeState('field'); Game.isTransitioning = false; },
+    updateBattleUI() {
+        const createCharacterHTML = (char) => {
+            const spriteClass = char.type === 'player' ? 'unit0-sprite' : 'acolyte-sprite';
+            const spriteParts = char.type === 'player'
+                ? `<div class="head"><div class="eye"></div></div><div class="body"><div class="core"></div></div>`
+                : `<div class="head"><div class="eye"></div></div><div class="body"></div><div class="shoulder left"></div><div class="shoulder right"></div>`;
+            
+            return `
+            <div id="${char.type}-${char.name.replace(/\s/g, '')}" class="robot-container">
+                <div class="robot-sprite ${spriteClass}">${spriteParts}</div>
+            </div>
+            <div class="robot-platform"></div>
+             <div class="battle-status ${char.type}-status">
+                <div class="flex justify-between items-center text-sm"> <span>${char.name}</span> <span class="text-xs">HP:${char.hp}/${char.maxHp}</span> </div>
+                <div class="status-bar"><div class="status-bar-inner hp-bar" style="width:${(char.hp/char.maxHp)*100}%"></div></div>
+                <div class="flex justify-between items-center text-xs mt-1"> <span>EP:${char.ep}/${char.maxEp}</span> <span>OD:${char.od}%</span> </div>
+                <div class="status-bar"><div class="status-bar-inner ep-bar" style="width:${(char.ep/char.maxEp)*100}%"></div></div>
+                <div class="status-bar mt-1"><div class="status-bar-inner od-bar" style="width:${(char.od/char.maxOd)*100}%"></div></div>
+            </div>`;
+        }
+        D.playerPosition.innerHTML = Game.player.party.map(createCharacterHTML).join('');
+        D.enemyPosition.innerHTML = this.enemies.map(createCharacterHTML).join('');
+        this.showPlayerCommands();
+    },
+    playVFX(attacker, target, skill, onComplete) {
+        const attackerElem = document.getElementById(`${attacker.type}-${attacker.name.replace(/\s/g, '')}`);
+        const targetElem = document.getElementById(`${target.type}-${target.name.replace(/\s/g, '')}`);
+        if (!attackerElem || !targetElem) { onComplete(); return; }
+
+        const createVFX = (className) => {
+            const vfx = document.createElement('div');
+            vfx.className = `vfx ${className}`;
+            return vfx;
+        };
+
+        switch (skill.type) {
+            case 'physical': {
+                const vfx = createVFX('slash-effect');
+                targetElem.appendChild(vfx);
+                setTimeout(() => { vfx.remove(); onComplete(); }, 300);
+                break;
+            }
+            case 'laser': {
+                const vfx = createVFX('laser-beam');
+                const startRect = attackerElem.getBoundingClientRect();
+                const endRect = targetElem.getBoundingClientRect();
+                const angle = Math.atan2(endRect.top - startRect.top, endRect.left - startRect.left) * 180 / Math.PI;
+                vfx.style.transform = `rotate(${angle}deg)`;
+                vfx.style.top = `${startRect.top + startRect.height / 2}px`;
+                vfx.style.left = `${startRect.left + startRect.width / 2}px`;
+                D.vfxLayer.appendChild(vfx);
+                setTimeout(() => { vfx.remove(); onComplete(); }, 400);
+                break;
+            }
+            case 'buff': {
+                const vfx = createVFX('power-aura');
+                attackerElem.appendChild(vfx);
+                setTimeout(() => { vfx.remove(); onComplete(); }, 1000);
+                break;
+            }
+            case 'special': {
+                 const flash = createVFX('screen-flash');
+                 D.vfxLayer.appendChild(flash);
+                 const charge = createVFX('overdrive-charge');
+                 attackerElem.appendChild(charge);
+                 setTimeout(() => {
+                     flash.remove();
+                     charge.remove();
+                     // You could add a bigger explosion effect here on the target
+                     onComplete();
+                 }, 1000);
+                break;
+            }
+            default:
+                onComplete();
+                break;
+        }
+    },
+    log(message) { D.dialogueText.textContent = message; }
+};
+
+window.onload = () => {
+    Game.init();
+};
+</script>
+</body>
+</html>
